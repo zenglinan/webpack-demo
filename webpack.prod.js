@@ -2,20 +2,17 @@ const path = require('path');
 const {CleanWebpackPlugin} = require('clean-webpack-plugin')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const vueLoaderPlugin = require('vue-loader/lib/plugin')
+const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin')
 const TerserWebpackPlugin = require('terser-webpack-plugin')
-const SpeedMeasurePlugin = require('speed-measure-webpack-plugin')
-const smp = new SpeedMeasurePlugin()
-const Webpack = require('webpack')
 
-module.exports = smp.wrap({
-    mode:'development', // 开发模式
-    devtool: "source-map",
+module.exports = {
+    mode:'production', // 开发模式
     entry: {
       main:path.resolve(__dirname,'./src/main.js'),
     },
     output: {
-      filename: '[name].[hash:8].js',      // 打包后的文件名称
-      path: path.resolve(__dirname,'./dist')  // 打包后的目录
+      filename: '[name].[hash:8].js',
+      path: path.resolve(__dirname,'./dist')
     },
     module:{
       rules:[
@@ -84,28 +81,41 @@ module.exports = smp.wrap({
       },
       extensions:['*','.js','.json','.vue']
     },
-    devServer:{
-      port:3000,
-      hot:true,
-      contentBase:'../dist'
-    },
     plugins:[
       new CleanWebpackPlugin(),
       new HtmlWebpackPlugin({
         template:path.resolve(__dirname,'./public/index.html'),
-        filename:'index.html'
+        chunks: ['libs', "main"],
+        filename:'index.html',
+        minify: { // html 压缩
+          html5: true,
+          collapseWhitespace: true,
+          preserveLineBreaks: false,
+          minifyCSS: true,
+          minifyJS: true,
+          removeComments: true
+        }
       }),
       new vueLoaderPlugin(),
-      new Webpack.HotModuleReplacementPlugin()
+      new OptimizeCssAssetsPlugin({ // css 压缩
+        assetNameRegExp: /\.css$/g,
+        cssProcessor: require('cssnano')
+      })
     ],
     optimization: {
+      splitChunks:{ // 代码分割
+        chunks:'all',
+        cacheGroups: {
+          libs: {
+            name: "libs",
+            chunks: "all"
+          }
+        }
+      },
       minimizer: [
         new TerserWebpackPlugin({
-          parallel: true
+          parallel: true  // 开启多进程打包 js
         })
       ]
-    },
-    externals: {
-      'vue': 'Vue',
     }
-})
+}
